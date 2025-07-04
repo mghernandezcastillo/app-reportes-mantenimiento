@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' https://esm.sh https://cdn.jsdelivr.net data:;
+                   style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; 
+                   img-src 'self' data: blob:; 
+                   font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; 
+                   connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://data.jsdelivr.com;
+                   worker-src 'self' blob:;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes de Mantenimiento - Macris</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai@^1.1.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.43.4",
+    "jsqr": "https://esm.sh/jsqr@1.4.0",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "qrcode": "https://esm.sh/qrcode@1.5.3",
+    "signature_pad": "https://esm.sh/signature_pad@4.2.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Iniciando aplicación...</p>
+    </div>
+
+    <div id="global-actions-container">
+        <button id="toggle-fullscreen-button" class="btn btn-secondary btn-icon-only" title="Pantalla Completa">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-container">
+            <img src="Macris-horizontal.png" alt="Macris Ingeniería Logo" class="login-logo">
+            <h2><i class="fas fa-shield-alt"></i> Acceso Reportes</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">Usuario (Cédula):</label>
+                    <input type="text" id="username" value="" required autocomplete="username" inputmode="numeric">
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" id="password" required autocomplete="current-password" inputmode="numeric">
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-fingerprint"></i> Ingresar</button>
+                <p id="login-error" class="error-message"></p>
+            </form>
+            
+            <div class="dev-login-buttons-container">
+                <p class="dev-info-text">Acceso Rápido:</p>
+                <button id="admin-pin-login-button" class="btn btn-dev-login"><i class="fas fa-user-shield"></i> Acceso Admin</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" style="display: none;">
+        <header>
+            <div class="header-content">
+                 <img src="MacrisLogo.png" alt="Macris Ingeniería Logo" class="header-logo">
+                 <h1><i class="fas fa-info-circle"></i> Cargando...</h1>
+            </div>
+            <div class="header-actions">
+                <span id="current-user-display"></span>
+                <button id="change-pin-action-button" class="btn btn-secondary btn-icon-only" title="Cambiar Contraseña" style="display: none;">
+                    <i class="fas fa-key"></i>
+                </button>
+                <button id="logout-button" class="btn btn-danger"><i class="fas fa-power-off"></i> Desconectar</button>
+            </div>
+        </header>
+
+        <main>
+            <!-- WORKER SECTIONS -->
+            <section id="worker-main-section" class="data-section" style="display: none;">
+                <h2><i class="fas fa-edit"></i> Crear Nuevo Reporte</h2>
+                <div class="section-header-actions">
+                    <button id="scan-qr-camera-button" class="btn btn-primary"><i class="fas fa-camera"></i> Usar Cámara QR</button>
+                    <button id="scan-qr-file-button" class="btn btn-secondary"><i class="fas fa-file-image"></i> QR desde Archivo</button>
+                    <input type="file" id="qr-file-input" accept="image/*" style="display:none;" aria-hidden="true">
+                    <button id="create-manual-report-button" class="btn btn-accent"><i class="fas fa-file-signature"></i> Crear Reporte Manual</button>
+                </div>
+                <p>Seleccione una opción para iniciar un nuevo reporte de mantenimiento.</p>
+            </section>
+
+            <section id="worker-my-reports-section" class="data-section" style="display: none;">
+                <h2><i class="fas fa-history"></i> Mis Reportes Enviados</h2>
+                 <div class="search-controls">
+                    <input type="search" id="my-reports-search" placeholder="Buscar en mis reportes..." aria-label="Buscar en mis reportes">
+                    <button id="my-reports-search-clear" class="btn btn-secondary btn-icon-only" title="Limpiar búsqueda">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table id="my-reports-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>ID Reporte</th>
+                                <th>Tipo Servicio</th>
+                                <th>Equipo</th>
+                                <th>Empresa</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination-controls" id="my-reports-pagination">
+                    </div>
+            </section>
+
+            <!-- ADMIN SECTIONS -->
+            <section id="admin-reports-section" class="data-section" style="display: none;">
+                <div class="section-header-container">
+                    <h2><i class="fas fa-file-invoice"></i> Todos los Reportes</h2>
+                    <button id="delete-all-reports-button" class="btn btn-danger btn-subtle-icon" title="Eliminar TODOS los reportes de la base de datos. ¡Acción irreversible!">
+                        <i class="fas fa-dumpster-fire"></i>
+                    </button>
+                </div>
+                <div class="filters-grid">
+                    <div class="form-group">
+                        <label for="filter-report-date-start">Fecha Desde:</label>
+                        <input type="date" id="filter-report-date-start">
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-report-date-end">Fecha Hasta:</label>
+                        <input type="date" id="filter-report-date-end">
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-report-city">Ciudad:</label>
+                        <select id="filter-report-city"><option value="">Todas</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-report-company">Empresa:</label>
+                        <select id="filter-report-company"><option value="">Todas</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-report-service-type">Tipo Servicio:</label>
+                        <select id="filter-report-service-type">
+                            <option value="">Todos</option>
+                            <option value="preventivo">Preventivo</option>
+                            <option value="correctivo">Correctivo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-report-technician">Técnico:</label>
+                        <select id="filter-report-technician"><option value="">Todos</option></select>
+                    </div>
+                </div>
+                 <div class="search-controls">
+                    <input type="search" id="admin-reports-search" placeholder="Buscar en todos los reportes..." aria-label="Buscar en todos los reportes">
+                    <button id="admin-reports-search-clear" class="btn btn-secondary btn-icon-only" title="Limpiar búsqueda">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table id="admin-reports-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>ID Reporte</th>
+                                <th>Técnico</th>
+                                <th>Tipo</th>
+                                <th>Equipo</th>
+                                <th>Empresa</th>
+                                <th>Ciudad</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination-controls" id="admin-reports-pagination">
+                </div>
+            </section>
+
+            <section id="admin-schedule-section" class="data-section" style="display: none;">
+                <h2><i class="fas fa-calendar-alt"></i> Cronograma de Mantenimiento</h2>
+                <p>Equipos con mantenimientos próximos o vencidos.</p>
+                <div class="table-container">
+                    <table id="admin-schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Equipo (Modelo/Marca)</th>
+                                <th>Dependencia</th>
+                                <th>Último Mtto.</th>
+                                <th>Próximo Mtto.</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Populated by JS --></tbody>
+                    </table>
+                </div>
+                 <div class="pagination-controls" id="admin-schedule-pagination"></div>
+            </section>
+
+            <section id="admin-equipment-section" class="data-section" style="display: none;">
+                <div class="section-header-actions">
+                     <button id="add-equipment-button" class="btn btn-accent"><i class="fas fa-plus-circle"></i> Agregar Equipo</button>
+                </div>
+                <h2><i class="fas fa-cogs"></i> Gestión de Equipos</h2>
+                <div class="search-controls">
+                    <input type="search" id="admin-equipment-search" placeholder="Buscar equipos..." aria-label="Buscar equipos">
+                    <button id="admin-equipment-search-clear" class="btn btn-secondary btn-icon-only" title="Limpiar búsqueda">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table id="admin-equipment-table">
+                        <thead>
+                            <tr>
+                                <th>ID Equipo</th>
+                                <th>Modelo</th>
+                                <th>Marca</th>
+                                <th>Tipo</th>
+                                <th>Capacidad</th>
+                                <th>Empresa</th>
+                                <th>Dependencia</th>
+                                <th>Periodicidad (Meses)</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination-controls" id="admin-equipment-pagination"></div>
+            </section>
+
+            <section id="admin-management-section" class="data-section" style="display: none;">
+                <h2><i class="fas fa-sitemap"></i> Gestión de Ubicaciones y Personal</h2>
+                <div class="tabs">
+                    <button class="tab-link active" data-tab="cities-tab"><i class="fas fa-city"></i> Ciudades</button>
+                    <button class="tab-link" data-tab="companies-tab"><i class="far fa-building"></i> Empresas</button>
+                    <button class="tab-link" data-tab="dependencies-tab"><i class="fas fa-map-marker-alt"></i> Dependencias</button>
+                    <button class="tab-link" data-tab="employees-tab"><i class="fas fa-users-cog"></i> Empleados</button>
+                </div>
+
+                <div id="cities-tab" class="tab-content active">
+                    <h3><i class="fas fa-city"></i> Ciudades</h3>
+                    <button id="add-city-button" class="btn btn-accent btn-compact"><i class="fas fa-plus"></i> Nueva Ciudad</button>
+                    <div class="table-container" style="margin-top:10px;">
+                        <table id="cities-table">
+                            <thead><tr><th>Nombre</th><th>Acciones</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="companies-tab" class="tab-content">
+                    <h3><i class="far fa-building"></i> Empresas</h3>
+                    <button id="add-company-button" class="btn btn-accent btn-compact"><i class="fas fa-plus"></i> Nueva Empresa</button>
+                    <div class="table-container" style="margin-top:10px;">
+                        <table id="companies-table">
+                            <thead><tr><th>Nombre</th><th>Ciudad</th><th>Acciones</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="dependencies-tab" class="tab-content">
+                    <h3><i class="fas fa-map-marker-alt"></i> Dependencias</h3>
+                    <button id="add-dependency-button" class="btn btn-accent btn-compact"><i class="fas fa-plus"></i> Nueva Dependencia</button>
+                    <div class="table-container" style="margin-top:10px;">
+                        <table id="dependencies-table">
+                            <thead><tr><th>Nombre</th><th>Empresa</th><th>Acciones</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                 <div id="employees-tab" class="tab-content">
+                    <h3><i class="fas fa-users-cog"></i> Empleados (Técnicos)</h3>
+                    <button id="add-employee-button" class="btn btn-accent btn-compact"><i class="fas fa-user-plus"></i> Nuevo Empleado</button>
+                    <div class="table-container" style="margin-top:10px;">
+                        <table id="employees-table">
+                            <thead><tr><th>Nombre</th><th>Cédula (Usuario)</th><th>Estado</th><th>Acciones</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <nav id="bottom-nav" style="display: none;">
+        <!-- Navigation items will be populated by JS based on role -->
+    </nav>
+
+    <!-- Report Form Modal -->
+    <div id="report-form-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-report-form-modal">&times;</span>
+            <h3><i class="fas fa-file-signature"></i> Formulario de Reporte de Mantenimiento</h3>
+            <form id="maintenance-report-form">
+                <input type="hidden" id="report-id"> <!-- For editing, if implemented -->
+                <input type="hidden" id="report-equipment-id-hidden">
+                <h4>Información del Servicio</h4>
+                <div class="form-group">
+                    <label for="report-service-type">Tipo de Servicio:</label>
+                    <select id="report-service-type" required>
+                        <option value="preventivo">Preventivo</option>
+                        <option value="correctivo">Correctivo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="report-city">Ciudad:</label>
+                    <div class="input-with-button">
+                        <select id="report-city" required></select>
+                        <button type="button" class="btn btn-add-inline" data-entity-type="city" title="Agregar Nueva Ciudad"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="report-company">Empresa:</label>
+                    <div class="input-with-button">
+                        <select id="report-company" required></select>
+                        <button type="button" class="btn btn-add-inline" data-entity-type="company" title="Agregar Nueva Empresa"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="report-dependency">Dependencia:</label>
+                    <div class="input-with-button">
+                        <select id="report-dependency" required></select>
+                        <button type="button" class="btn btn-add-inline" data-entity-type="dependency" title="Agregar Nueva Dependencia"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+
+                <h4>Datos del Equipo</h4>
+                <div id="manual-equipment-selector-container" class="form-group" style="display: none;">
+                    <label for="report-equipment-selector">Seleccionar Equipo Existente:</label>
+                    <select id="report-equipment-selector">
+                        <option value="">-- Cargando equipos... --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="report-equipment-model">Modelo:</label>
+                    <input type="text" id="report-equipment-model" required>
+                </div>
+                <div class="form-group">
+                    <label for="report-equipment-brand">Marca:</label>
+                    <input type="text" id="report-equipment-brand" required>
+                </div>
+                 <div class="form-group">
+                    <label for="report-equipment-type">Tipo de Equipo:</label>
+                    <div class="input-with-button">
+                        <select id="report-equipment-type" required></select>
+                        <button type="button" class="btn btn-add-inline" data-entity-type="equipmentType" title="Agregar Nuevo Tipo de Equipo"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="report-equipment-capacity">Capacidad (BTU/TR):</label>
+                    <input type="text" id="report-equipment-capacity">
+                </div>
+                <div class="form-group">
+                    <label for="report-equipment-refrigerant">Refrigerante:</label>
+                    <div class="input-with-button">
+                        <select id="report-equipment-refrigerant"></select>
+                        <button type="button" class="btn btn-add-inline" data-entity-type="refrigerant" title="Agregar Nuevo Refrigerante"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                
+                <h4>Observaciones y Firma</h4>
+                <div class="form-group">
+                    <label for="report-observations">Observaciones:</label>
+                    <textarea id="report-observations" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Firma del Cliente:</label>
+                    <div id="signature-preview-container" style="margin-bottom: 10px; border:1px solid var(--color-border-light); min-height:50px; background:white; text-align:center;">
+                        <img id="signature-preview-image" src="#" alt="Firma del cliente" style="display:none; max-width: 200px; max-height:100px; object-fit:contain;">
+                        <span id="signature-placeholder-text" style="color:var(--color-text-placeholder); line-height:50px;">No hay firma</span>
+                    </div>
+                    <button type="button" id="open-signature-modal-button" class="btn btn-secondary"><i class="fas fa-pencil-alt"></i> Abrir Panel de Firma</button>
+                </div>
+                 <div class="form-group">
+                    <label for="report-worker-name">Nombre del Técnico:</label>
+                    <input type="text" id="report-worker-name" readonly disabled>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" id="save-report-button" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Reporte</button>
+                    <button type="button" id="cancel-report-button" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Signature Modal -->
+    <div id="signature-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-signature-modal">&times;</span>
+            <h3><i class="fas fa-signature"></i> Firma del Cliente</h3>
+            <canvas id="signature-canvas" style="border: 1px solid var(--color-border-medium); border-radius:var(--border-radius-sharp); background-color: #fff; cursor:crosshair; touch-action:none;"></canvas>
+            <div class="modal-actions">
+                <button id="save-signature-button" class="btn btn-primary"><i class="fas fa-check"></i> Guardar Firma</button>
+                <button id="clear-signature-button" type="button" class="btn btn-secondary"><i class="fas fa-eraser"></i> Limpiar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Scan Modal -->
+    <div id="camera-scan-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-camera-scan-modal">&times;</span>
+            <h3><i class="fas fa-camera"></i> Escaneando QR con Cámara</h3>
+            <video id="qr-video" playsinline style="width: 100%; max-height: 70vh; border: 1px solid var(--color-border-light); background-color: #000; border-radius: var(--border-radius-sharp);"></video>
+            <canvas id="qr-canvas-hidden" style="display:none;"></canvas> <!-- Hidden canvas for jsQR processing -->
+            <p id="camera-scan-feedback" style="text-align:center; margin-top:10px; min-height:1.2em;"></p>
+            <div class="modal-actions">
+                <button type="button" id="cancel-camera-scan-button" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar Escaneo</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Generic Entity Form Modal (for Equipment, City, Company, Dependency, Employee) -->
+    <div id="entity-form-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-entity-form-modal">&times;</span>
+            <h3 id="entity-form-title"><i class="fas fa-edit"></i> Editar Entidad</h3>
+            <form id="entity-form">
+                <input type="hidden" id="entity-id">
+                <input type="hidden" id="entity-type"> <!-- e.g., 'equipment', 'city' -->
+                <div id="entity-form-fields-container">
+                    <!-- Dynamic fields will be injected here by JS -->
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" id="save-entity-button" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+                    <button type="button" id="cancel-entity-button" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Report Details Modal -->
+    <div id="view-report-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="close-view-report-details-modal">&times;</span>
+            <h3><i class="fas fa-file-alt"></i> Detalles del Reporte <span id="view-report-id-display" style="font-size:0.7em; color: var(--color-text-secondary);"></span></h3>
+            <div id="view-report-details-content" class="report-details-grid">
+                <!-- Details will be populated by JS -->
+            </div>
+             <div class="modal-actions">
+                <button type="button" id="download-report-pdf-button" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+                <button type="button" id="close-view-report-button" class="btn btn-secondary"><i class="fas fa-times-circle"></i> Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Confirmation Modal (Reused) -->
+    <div id="confirmation-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-confirmation-modal-button">&times;</span>
+            <h3><i class="fas fa-question-circle"></i> Confirmar Acción</h3>
+            <p id="confirmation-message">¿Está seguro?</p>
+            <div class="modal-actions">
+                <button id="confirm-action-button" class="btn btn-danger"><i class="fas fa-check"></i> Confirmar</button>
+                <button id="cancel-action-button" type="button" class="btn btn-secondary"><i class="fas fa-times"></i> Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal (Reused for Signatures) -->
+    <div id="image-preview-modal" class="modal">
+        <div class="modal-content modal-content-image-preview">
+            <span class="close-button" id="close-image-preview-modal">&times;</span>
+            <img id="image-preview-content" src="#" alt="Vista Previa de Imagen Ampliada">
+        </div>
+    </div>
+
+    <!-- Admin Login Modal (formerly PIN) -->
+    <div id="admin-pin-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-admin-pin-modal">&times;</span>
+            <h3><i class="fas fa-user-shield"></i> Acceso de Administrador</h3>
+            <form id="admin-pin-form">
+                <div class="form-group">
+                    <label for="admin-pin-input">Contraseña:</label>
+                    <input type="password" id="admin-pin-input" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Ingresar</button>
+                <p id="admin-pin-error" class="error-message"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal (formerly PIN) -->
+    <div id="change-pin-modal" class="modal">
+        <div class="modal-content modal-content-small">
+            <span class="close-button" id="close-change-pin-modal">&times;</span>
+            <h3><i class="fas fa-key"></i> Cambiar Contraseña de Administrador</h3>
+            <form id="change-pin-form">
+                <div class="form-group">
+                    <label for="current-pin-input">Contraseña Actual:</label>
+                    <input type="password" id="current-pin-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-pin-input">Nueva Contraseña:</label>
+                    <input type="password" id="new-pin-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm-new-pin-input">Confirmar Nueva Contraseña:</label>
+                    <input type="password" id="confirm-new-pin-input" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" id="save-pin-button" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
+                    <button type="button" id="cancel-change-pin-button" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
+                </div>
+                 <p id="change-pin-error" class="error-message"></p>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-notification-area" aria-live="assertive"></div>
+
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
