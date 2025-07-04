@@ -1,14 +1,40 @@
-# Run and deploy your AI Studio app
+# App de Reportes de Mantenimiento
 
-This contains everything you need to run your app locally.
+Aplicación web para registrar y gestionar reportes de mantenimiento preventivo y correctivo de equipos de aire acondicionado. Desarrollada con React, TypeScript y Supabase.
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🚀 Funcionalidades
 
+### 👷 Trabajador
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Crear reportes manualmente o escaneando QR.
+- Registro de tipo de servicio, ciudad, empresa, dependencia y datos del equipo.
+- Firma del cliente mediante canvas.
+- Observaciones automáticas o personalizadas.
+
+### 🛠️ Administrador
+
+- Visualización completa de reportes.
+- Gestión de equipos, empleados, ciudades, empresas y dependencias.
+- Cronograma de mantenimientos según periodicidad.
+
+---
+
+## 🛠️ Tecnologías utilizadas
+
+- **Frontend:** React + Vite + TypeScript
+- **Backend:** Supabase (Base de datos PostgreSQL + Auth + Storage)
+- **UI:** HTML/CSS, Canvas para firmas digitales
+- **Almacenamiento:** Supabase y LocalStorage (fase de pruebas)
+
+---
+
+## 📦 Instalación
+
+```bash
+git clone https://github.com/tu-usuario/app-reportes-mantenimiento.git
+cd app-reportes-mantenimiento
+npm install
+npm run dev
+```
